@@ -1,0 +1,51 @@
+@page "/Account/Login"
+@using EVOpsPro.BlazorWebApp.KhiemNVD.GraphQLClient;
+@inject AuthService AuthService
+@inject NavigationManager Nav
+
+<h3>Login</h3>
+
+<div class="mb-3">
+    <label>Email</label>
+    <input @bind="email" class="form-control" />
+</div>
+
+<div class="mb-3">
+    <label>Password</label>
+    <input type="password" @bind="password" class="form-control" />
+</div>
+
+<button @onclick="OnLogin" class="btn btn-primary">Login</button>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <p class="text-danger">@errorMessage</p>
+}
+
+@code {
+    private string email;
+    private string password;
+    private string errorMessage;
+
+    private async Task OnLogin()
+    {
+        try
+        {
+            var user = await AuthService.LoginAsync(email, password);
+
+            if (user == null)
+            {
+                errorMessage = "Invalid username or password.";
+                return;
+            }
+
+            // Lýu thông tin user vào session/localStorage tùy b?n
+
+            Nav.NavigateTo("/Reminders");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+}

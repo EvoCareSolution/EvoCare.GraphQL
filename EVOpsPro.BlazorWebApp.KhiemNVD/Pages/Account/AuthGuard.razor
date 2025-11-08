@@ -1,0 +1,47 @@
+﻿@page "/Account/AuthGuard"
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+@if (isChecking)
+{
+    <p>🔍 Checking authentication...</p>
+}
+else if (!isAuthenticated)
+{
+    <p class="text-danger">Redirecting to login...</p>
+}
+else
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter] public RenderFragment ChildContent { get; set; }
+
+    private bool isAuthenticated;
+    private bool isChecking = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var userId = await JS.InvokeAsync<string>("localStorage.getItem", "userId");
+                isAuthenticated = !string.IsNullOrEmpty(userId);
+
+                if (!isAuthenticated)
+                {
+                    Nav.NavigateTo("/Account/Login", forceLoad: true);
+                }
+
+                isChecking = false;
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ JSRuntime not ready yet: {ex.Message}");
+            }
+        }
+    }
+}
