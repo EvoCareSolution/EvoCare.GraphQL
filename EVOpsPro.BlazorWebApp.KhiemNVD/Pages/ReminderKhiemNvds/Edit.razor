@@ -1,0 +1,130 @@
+@page "/Reminders/Edit/{ReminderId:int}"
+@using EVOpsPro.BlazorWebApp.KhiemNVD.GraphQLClient
+@using EVOpsPro.BlazorWebApp.KhiemNVD.Models
+@inject GraphQLConsumer GraphQL
+@inject NavigationManager Navigation
+
+<EVOpsPro.BlazorWebApp.KhiemNVD.Pages.Account.AuthGuard>
+    <h3 class="text-primary fw-bold mb-3">Update Reminder</h3>
+
+    @if (isLoading)
+    {
+        <div class="alert alert-info">Loading reminder...</div>
+    }
+    else if (model == null)
+    {
+        <div class="alert alert-danger">Reminder was not found.</div>
+    }
+    else
+    {
+        <EditForm Model="model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="card shadow-sm p-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Advisor</label>
+                        <InputSelect class="form-select" @bind-Value="model.UserAccountId">
+                            @foreach (var user in users)
+                            {
+                                <option value="@user.UserAccountId">@user.FullName</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Reminder Type</label>
+                        <InputSelect class="form-select" @bind-Value="model.ReminderTypeKhiemNvdid">
+                            @foreach (var type in reminderTypes)
+                            {
+                                <option value="@type.ReminderTypeKhiemNvdid">@type.TypeName</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Vehicle VIN</label>
+                        <InputText class="form-control" @bind-Value="model.VehicleVin" />
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Due Date</label>
+                        <InputDate class="form-control" @bind-Value="model.DueDate" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Due Kilometer</label>
+                        <InputNumber class="form-control" @bind-Value="model.DueKm" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Flags</label>
+                        <div class="form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="model.IsSent" />
+                            <label class="form-check-label">Sent to customer</label>
+                        </div>
+                        <div class="form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="model.IsActive" />
+                            <label class="form-check-label">Active</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <label class="form-label fw-semibold">Message</label>
+                    <InputTextArea class="form-control" rows="3" @bind-Value="model.Message" />
+                </div>
+
+                <div class="text-end mt-4">
+                    <button class="btn btn-primary me-2" type="submit">
+                        <i class="bi bi-save2"></i> Update
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" @onclick="GoBack">
+                        Cancel
+                    </button>
+                </div>
+                @if (!string.IsNullOrEmpty(statusMessage))
+                {
+                    <div class="alert alert-info mt-3">@statusMessage</div>
+                }
+            </div>
+        </EditForm>
+    }
+</EVOpsPro.BlazorWebApp.KhiemNVD.Pages.Account.AuthGuard>
+
+@code {
+    [Parameter] public int ReminderId { get; set; }
+    private ReminderKhiemNvd? model;
+    private List<SystemUserAccount> users = new();
+    private List<ReminderTypeKhiemNvd> reminderTypes = new();
+    private bool isLoading = true;
+    private string? statusMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        users = await GraphQL.GetSystemUserAccounts();
+        reminderTypes = await GraphQL.GetReminderTypes(includeInactive: true);
+        model = await GraphQL.GetReminderById(ReminderId);
+        isLoading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (model == null)
+        {
+            return;
+        }
+
+        statusMessage = "Saving changes...";
+        var updated = await GraphQL.UpdateReminder(model);
+        if (updated.HasValue && updated.Value > 0)
+        {
+            Navigation.NavigateTo("/Reminders");
+        }
+        else
+        {
+            statusMessage = GraphQL.LastErrorMessage ?? "Failed to update reminder";
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/Reminders");
+}

@@ -1,0 +1,339 @@
+@page "/Reminders"
+@using EVOpsPro.BlazorWebApp.KhiemNVD.GraphQLClient
+@using EVOpsPro.BlazorWebApp.KhiemNVD.Models
+@inject GraphQLConsumer GraphQL
+@inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
+
+<EVOpsPro.BlazorWebApp.KhiemNVD.Pages.Account.AuthGuard>
+    <div class="d-flex flex-column gap-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h3 class="text-primary fw-bold mb-0">Reminder Control Center</h3>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" @onclick="GoToCreateReminder">
+                    <i class="bi bi-plus-circle"></i> New Reminder
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="GoToReminderTypes">
+                    <i class="bi bi-sliders"></i> Reminder Types
+                </button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm p-3">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Reminder Type</label>
+                    <select class="form-select" @bind="filters.ReminderTypeId">
+                        <option value="">All types</option>
+                        @foreach (var type in reminderTypes)
+                        {
+                            <option value="@type.ReminderTypeKhiemNvdid">@type.TypeName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Assigned To</label>
+                    <select class="form-select" @bind="filters.UserAccountId">
+                        <option value="">All advisors</option>
+                        @foreach (var user in users)
+                        {
+                            <option value="@user.UserAccountId">@user.FullName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Due From</label>
+                    <input type="date" class="form-control" @bind="bindDueFrom" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Due To</label>
+                    <input type="date" class="form-control" @bind="bindDueTo" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Status</label>
+                    <select class="form-select" @bind="filters.IsSent">
+                        <option value="">All</option>
+                        <option value="false">Pending</option>
+                        <option value="true">Sent</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row g-3 mt-2">
+                <div class="col-md-2">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" id="upcoming" @bind="filters.UpcomingOnly" />
+                        <label class="form-check-label" for="upcoming">Upcoming only</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" id="overdue" @bind="filters.OnlyOverdue" />
+                        <label class="form-check-label" for="overdue">Only overdue</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" id="includeInactive" @bind="filters.IncludeInactive" />
+                        <label class="form-check-label" for="includeInactive">Include inactive</label>
+                    </div>
+                </div>
+                <div class="col-md-6 d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary mt-3" @onclick="ResetFilters">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reset
+                    </button>
+                    <button class="btn btn-primary mt-3" @onclick="ApplyFilters">
+                        <i class="bi bi-search"></i> Apply
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="card shadow-sm p-3 border-start border-success border-3">
+                    <small class="text-uppercase text-muted">Upcoming</small>
+                    <h4 class="mb-0">@metrics.UpComing</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm p-3 border-start border-danger border-3">
+                    <small class="text-uppercase text-muted">Overdue</small>
+                    <h4 class="mb-0">@metrics.Overdue</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm p-3 border-start border-primary border-3">
+                    <small class="text-uppercase text-muted">Pending Actions</small>
+                    <h4 class="mb-0">@metrics.Pending</h4>
+                </div>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="text-center my-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="text-muted mt-3">Loading reminders...</p>
+            </div>
+        }
+        else if (!reminders.Any())
+        {
+            <div class="alert alert-warning">
+                <i class="bi bi-info-circle"></i> No reminders matched the current filters.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive shadow-sm rounded bg-white">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Due Date</th>
+                            <th>Vehicle VIN</th>
+                            <th>Type</th>
+                            <th>Advisor</th>
+                            <th>Due Km</th>
+                            <th>Message</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in reminders.Select((value, index) => new { value, index }))
+                        {
+                            var statusBadge = item.value.IsSent ? "bg-success" : (item.value.DueDate < DateTime.Today ? "bg-danger" : "bg-warning text-dark");
+                            <tr>
+                                <td>@((filters.CurrentPage - 1) * filters.PageSize + item.index + 1)</td>
+                                <td>@item.value.DueDate.ToString("dd/MM/yyyy")</td>
+                                <td><span class="badge bg-secondary">@item.value.VehicleVin</span></td>
+                                <td>@item.value.ReminderTypeKhiemNvd?.TypeName</td>
+                                <td>@item.value.SystemUserAccount?.FullName</td>
+                                <td>@(item.value.DueKm?.ToString("N0") ?? "—")</td>
+                                <td>@item.value.Message</td>
+                                <td>
+                                    <span class="badge @statusBadge">
+                                        @(item.value.IsSent ? "Sent" : item.value.DueDate < DateTime.Today ? "Overdue" : "Pending")
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-secondary" title="View detail" @onclick="@(() => ViewReminder(item.value.ReminderKhiemNvdid))">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        @if (!item.value.IsSent)
+                                        {
+                                            <button class="btn btn-success" title="Mark as sent" @onclick="@(() => MarkAsSent(item.value.ReminderKhiemNvdid))">
+                                                <i class="bi bi-send-check"></i>
+                                            </button>
+                                        }
+                                        <button class="btn btn-outline-primary" title="Edit" @onclick="@(() => EditReminder(item.value.ReminderKhiemNvdid))">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" title="Delete" @onclick="@(() => DeleteReminder(item.value.ReminderKhiemNvdid))">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <nav class="mt-3">
+                <ul class="pagination justify-content-end">
+                    <li class="page-item @(filters.CurrentPage == 1 ? "disabled" : string.Empty)">
+                        <button class="page-link" @onclick="PreviousPage">Previous</button>
+                    </li>
+                    @for (var pageNumber = 1; pageNumber <= totalPages; pageNumber++)
+                    {
+                        <li class="page-item @(filters.CurrentPage == pageNumber ? "active" : string.Empty)">
+                            <button class="page-link" @onclick="@(() => GoToPage(pageNumber))">@pageNumber</button>
+                        </li>
+                    }
+                    <li class="page-item @(filters.CurrentPage == totalPages ? "disabled" : string.Empty)">
+                        <button class="page-link" @onclick="NextPage">Next</button>
+                    </li>
+                </ul>
+            </nav>
+        }
+    </div>
+</EVOpsPro.BlazorWebApp.KhiemNVD.Pages.Account.AuthGuard>
+
+@code {
+    private readonly ReminderSearchRequestInput filters = new() { PageSize = 5 };
+    private List<ReminderKhiemNvd> reminders = new();
+    private List<ReminderTypeKhiemNvd> reminderTypes = new();
+    private List<SystemUserAccount> users = new();
+    private bool isLoading = true;
+    private int totalPages = 1;
+    private (int UpComing, int Overdue, int Pending) metrics = (0, 0, 0);
+
+    private DateTime? bindDueFrom
+    {
+        get => filters.DueFrom;
+        set => filters.DueFrom = value;
+    }
+
+    private DateTime? bindDueTo
+    {
+        get => filters.DueTo;
+        set => filters.DueTo = value;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        reminderTypes = await GraphQL.GetReminderTypes();
+        users = await GraphQL.GetSystemUserAccounts();
+        await LoadReminders();
+    }
+
+    private async Task LoadReminders()
+    {
+        try
+        {
+            isLoading = true;
+            var result = await GraphQL.GetReminderKhiemNvdsWithPaging(filters);
+            reminders = result?.Items ?? new List<ReminderKhiemNvd>();
+            totalPages = result?.TotalPages ?? 1;
+            metrics = (
+                reminders.Count(r => !r.IsSent && r.DueDate >= DateTime.Today),
+                reminders.Count(r => !r.IsSent && r.DueDate < DateTime.Today),
+                reminders.Count(r => !r.IsSent));
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        filters.CurrentPage = 1;
+        await LoadReminders();
+    }
+
+    private async Task ResetFilters()
+    {
+        filters.ReminderTypeId = null;
+        filters.UserAccountId = null;
+        filters.DueFrom = null;
+        filters.DueTo = null;
+        filters.IsSent = null;
+        filters.IncludeInactive = false;
+        filters.OnlyOverdue = false;
+        filters.UpcomingOnly = false;
+        filters.CurrentPage = 1;
+        await LoadReminders();
+    }
+
+    private async Task GoToPage(int page)
+    {
+        filters.CurrentPage = page;
+        await LoadReminders();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (filters.CurrentPage > 1)
+        {
+            filters.CurrentPage--;
+            await LoadReminders();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (filters.CurrentPage < totalPages)
+        {
+            filters.CurrentPage++;
+            await LoadReminders();
+        }
+    }
+
+    private void GoToCreateReminder() => Navigation.NavigateTo("/Reminders/Create");
+
+    private void GoToReminderTypes() => Navigation.NavigateTo("/ReminderTypes");
+
+    private void ViewReminder(int? reminderId)
+    {
+        if (reminderId.HasValue)
+        {
+            Navigation.NavigateTo($"/Reminders/Detail/{reminderId.Value}");
+        }
+    }
+
+    private void EditReminder(int? reminderId)
+    {
+        if (reminderId.HasValue)
+        {
+            Navigation.NavigateTo($"/Reminders/Edit/{reminderId.Value}");
+        }
+    }
+
+    private void DeleteReminder(int? reminderId)
+    {
+        if (reminderId.HasValue)
+        {
+            Navigation.NavigateTo($"/Reminders/Delete/{reminderId.Value}");
+        }
+    }
+
+    private async Task MarkAsSent(int? id)
+    {
+        if (id == null)
+        {
+            return;
+        }
+
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Mark this reminder as sent?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        await GraphQL.MarkReminderAsSent(id.Value);
+        await LoadReminders();
+    }
+}

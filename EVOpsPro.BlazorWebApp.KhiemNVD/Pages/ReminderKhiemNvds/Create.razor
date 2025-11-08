@@ -1,0 +1,133 @@
+@page "/Reminders/Create"
+@using EVOpsPro.BlazorWebApp.KhiemNVD.GraphQLClient
+@using EVOpsPro.BlazorWebApp.KhiemNVD.Models
+@inject GraphQLConsumer GraphQL
+@inject NavigationManager Navigation
+
+<EVOpsPro.BlazorWebApp.KhiemNVD.Pages.Account.AuthGuard>
+    <h3 class="text-primary fw-bold mb-3">Create Maintenance Reminder</h3>
+
+    @if (isLoading)
+    {
+        <div class="alert alert-info">Loading reference data...</div>
+    }
+    else
+    {
+        <EditForm Model="model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="card shadow-sm p-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Advisor</label>
+                        <InputSelect class="form-select" @bind-Value="model.UserAccountId">
+                            <option value="">Choose user</option>
+                            @foreach (var user in users)
+                            {
+                                <option value="@user.UserAccountId">@user.FullName (@user.Email)</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Reminder Type</label>
+                        <InputSelect class="form-select" @bind-Value="model.ReminderTypeKhiemNvdid">
+                            <option value="">Choose type</option>
+                            @foreach (var type in reminderTypes)
+                            {
+                                <option value="@type.ReminderTypeKhiemNvdid">@type.TypeName</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Vehicle VIN</label>
+                        <InputText class="form-control" @bind-Value="model.VehicleVin" />
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Due Date</label>
+                        <InputDate class="form-control" @bind-Value="model.DueDate" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Due Kilometer</label>
+                        <InputNumber class="form-control" @bind-Value="model.DueKm" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Initial Status</label>
+                        <div class="form-check mt-2">
+                            <InputCheckbox class="form-check-input" @bind-Value="model.IsSent" />
+                            <label class="form-check-label">Already sent</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <label class="form-label fw-semibold">Message</label>
+                    <InputTextArea class="form-control" rows="3" @bind-Value="model.Message" />
+                </div>
+
+                <div class="text-end mt-4">
+                    <button class="btn btn-primary me-2" type="submit">
+                        <i class="bi bi-save"></i> Save
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" @onclick="GoBack">
+                        Cancel
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrEmpty(statusMessage))
+                {
+                    <div class="alert alert-info mt-3">@statusMessage</div>
+                }
+            </div>
+        </EditForm>
+    }
+</EVOpsPro.BlazorWebApp.KhiemNVD.Pages.Account.AuthGuard>
+
+@code {
+    private ReminderKhiemNvd model = new()
+    {
+        DueDate = DateTime.Today.AddDays(3)
+    };
+
+    private List<SystemUserAccount> users = new();
+    private List<ReminderTypeKhiemNvd> reminderTypes = new();
+    private bool isLoading = true;
+    private string? statusMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        users = await GraphQL.GetSystemUserAccounts();
+        reminderTypes = await GraphQL.GetReminderTypes();
+        if (users.Any())
+        {
+            model.UserAccountId = users.First().UserAccountId;
+        }
+        if (reminderTypes.Any())
+        {
+            model.ReminderTypeKhiemNvdid = reminderTypes.First().ReminderTypeKhiemNvdid ?? 0;
+        }
+        isLoading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        statusMessage = "Submitting reminder...";
+        var result = await GraphQL.CreateReminder(model);
+        if (result.HasValue && result.Value > 0)
+        {
+            Navigation.NavigateTo("/Reminders");
+        }
+        else
+        {
+            statusMessage = GraphQL.LastErrorMessage ?? "Unable to save reminder.";
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/Reminders");
+    }
+}

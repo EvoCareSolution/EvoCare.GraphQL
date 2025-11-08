@@ -1,0 +1,84 @@
+@page "/Reminders/Detail/{ReminderId:int}"
+@using EVOpsPro.BlazorWebApp.KhiemNVD.GraphQLClient
+@using EVOpsPro.BlazorWebApp.KhiemNVD.Models
+@inject GraphQLConsumer GraphQL
+@inject NavigationManager Navigation
+
+<EVOpsPro.BlazorWebApp.KhiemNVD.Pages.Account.AuthGuard>
+    <h3 class="text-primary fw-bold mb-3">Reminder Detail</h3>
+
+    @if (isLoading)
+    {
+        <div class="alert alert-info">Loading reminder...</div>
+    }
+    else if (reminder == null)
+    {
+        <div class="alert alert-danger">Reminder not found.</div>
+        <button class="btn btn-outline-secondary mt-3" @onclick="GoBack">Back</button>
+    }
+    else
+    {
+        <div class="card shadow-sm p-4">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Advisor</dt>
+                <dd class="col-sm-9">@reminder.SystemUserAccount?.FullName (@reminder.SystemUserAccount?.Email)</dd>
+
+                <dt class="col-sm-3">Reminder Type</dt>
+                <dd class="col-sm-9">@reminder.ReminderTypeKhiemNvd?.TypeName</dd>
+
+                <dt class="col-sm-3">Vehicle VIN</dt>
+                <dd class="col-sm-9"><span class="badge bg-secondary">@reminder.VehicleVin</span></dd>
+
+                <dt class="col-sm-3">Due Date</dt>
+                <dd class="col-sm-9">@reminder.DueDate.ToString("dd/MM/yyyy")</dd>
+
+                <dt class="col-sm-3">Due Kilometer</dt>
+                <dd class="col-sm-9">@((reminder.DueKm?.ToString("N0")) ?? "—")</dd>
+
+                <dt class="col-sm-3">Status</dt>
+                <dd class="col-sm-9">
+                    @if (reminder.IsSent)
+                    {
+                        <span class="badge bg-success">Sent</span>
+                    }
+                    else if (reminder.DueDate < DateTime.Today)
+                    {
+                        <span class="badge bg-danger">Overdue</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-warning text-dark">Pending</span>
+                    }
+                </dd>
+
+                <dt class="col-sm-3">Message</dt>
+                <dd class="col-sm-9">@reminder.Message</dd>
+            </dl>
+
+            <div class="text-end mt-4">
+                <button class="btn btn-outline-secondary me-2" @onclick="GoBack">
+                    <i class="bi bi-arrow-left"></i> Back
+                </button>
+                <button class="btn btn-primary" @onclick="Edit">
+                    <i class="bi bi-pencil-square"></i> Edit
+                </button>
+            </div>
+        </div>
+    }
+</EVOpsPro.BlazorWebApp.KhiemNVD.Pages.Account.AuthGuard>
+
+@code {
+    [Parameter] public int ReminderId { get; set; }
+    private ReminderKhiemNvd? reminder;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        reminder = await GraphQL.GetReminderById(ReminderId);
+        isLoading = false;
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/Reminders");
+
+    private void Edit() => Navigation.NavigateTo($"/Reminders/Edit/{ReminderId}");
+}

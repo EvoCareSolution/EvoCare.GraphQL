@@ -1,0 +1,255 @@
+@page "/ReminderTypes"
+@using EVOpsPro.BlazorWebApp.KhiemNVD.GraphQLClient
+@using EVOpsPro.BlazorWebApp.KhiemNVD.Models
+@inject GraphQLConsumer GraphQL
+@inject NavigationManager Navigation
+
+<EVOpsPro.BlazorWebApp.KhiemNVD.Pages.Account.AuthGuard>
+    <div class="d-flex flex-column gap-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3 class="text-primary fw-bold mb-0">Reminder Type Catalog</h3>
+            <button class="btn btn-outline-secondary" @onclick="GoBackToReminders">
+                <i class="bi bi-arrow-left"></i> Back to Reminders
+            </button>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-7">
+                <div class="card shadow-sm p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Existing Types</h5>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="showInactive" @bind="showInactive" @bind:after="OnIncludeInactiveChanged" />
+                            <label class="form-check-label" for="showInactive">Show inactive</label>
+                        </div>
+                    </div>
+
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Recurring</th>
+                                <th>Interval</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var type in types)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@type.TypeName</strong>
+                                        <div class="text-muted small">@type.Description</div>
+                                    </td>
+                                    <td>@(type.IsRecurring ? "Yes" : "No")</td>
+                                    <td>
+                                        @if (type.IsRecurring)
+                                        {
+                                            <span>@(type.IntervalDays ?? 0) days / @(type.IntervalKm ?? 0) km</span>
+                                        }
+                                        else
+                                        {
+                                            <span>—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @(type.IsActive ? "bg-success" : "bg-secondary")">
+                                            @(type.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" @onclick="() => Edit(type)">Edit</button>
+                                            <button class="btn btn-outline-secondary" @onclick="() => ToggleStatus(type)">
+                                                @(type.IsActive ? "Disable" : "Enable")
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card shadow-sm p-3 mb-3">
+                    <h5 class="mb-3">Add New Type</h5>
+                    <EditForm Model="newType" OnValidSubmit="CreateType">
+                        <div class="mb-2">
+                            <label class="form-label">Name</label>
+                            <InputText class="form-control" @bind-Value="newType.TypeName" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Description</label>
+                            <InputTextArea class="form-control" rows="2" @bind-Value="newType.Description" />
+                        </div>
+                        <div class="form-check mb-2">
+                            <InputCheckbox class="form-check-input" @bind-Value="newType.IsRecurring" />
+                            <label class="form-check-label">Recurring template</label>
+                        </div>
+                        @if (newType.IsRecurring)
+                        {
+                            <div class="row g-2 mb-2">
+                                <div class="col">
+                                    <label class="form-label">Interval days</label>
+                                    <InputNumber class="form-control" @bind-Value="newType.IntervalDays" />
+                                </div>
+                                <div class="col">
+                                    <label class="form-label">Interval km</label>
+                                    <InputNumber class="form-control" @bind-Value="newType.IntervalKm" />
+                                </div>
+                            </div>
+                        }
+                        <div class="form-check mb-3">
+                            <InputCheckbox class="form-check-input" @bind-Value="newType.IsPaymentRelated" />
+                            <label class="form-check-label">Payment related</label>
+                        </div>
+                        <button class="btn btn-primary w-100" type="submit">
+                            <i class="bi bi-plus-circle"></i> Create Type
+                        </button>
+                    </EditForm>
+                </div>
+
+                @if (editModel != null)
+                {
+                    <div class="card shadow-sm p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0">Edit Type</h5>
+                            <button class="btn btn-sm btn-link text-danger" @onclick="() => editModel = null">Close</button>
+                        </div>
+                        <EditForm Model="editModel" OnValidSubmit="UpdateType">
+                            <div class="mb-2">
+                                <label class="form-label">Name</label>
+                                <InputText class="form-control" @bind-Value="editModel.TypeName" />
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Description</label>
+                                <InputTextArea class="form-control" rows="2" @bind-Value="editModel.Description" />
+                            </div>
+                            <div class="form-check mb-2">
+                                <InputCheckbox class="form-check-input" @bind-Value="editModel.IsRecurring" />
+                                <label class="form-check-label">Recurring template</label>
+                            </div>
+                            @if (editModel.IsRecurring)
+                            {
+                                <div class="row g-2 mb-2">
+                                    <div class="col">
+                                        <label class="form-label">Interval days</label>
+                                        <InputNumber class="form-control" @bind-Value="editModel.IntervalDays" />
+                                    </div>
+                                    <div class="col">
+                                        <label class="form-label">Interval km</label>
+                                        <InputNumber class="form-control" @bind-Value="editModel.IntervalKm" />
+                                    </div>
+                                </div>
+                            }
+                            <div class="form-check mb-3">
+                                <InputCheckbox class="form-check-input" @bind-Value="editModel.IsPaymentRelated" />
+                                <label class="form-check-label">Payment related</label>
+                            </div>
+                            <button class="btn btn-primary w-100" type="submit">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                        </EditForm>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="alert alert-info">@statusMessage</div>
+        }
+    </div>
+</EVOpsPro.BlazorWebApp.KhiemNVD.Pages.Account.AuthGuard>
+
+@code {
+    private List<ReminderTypeKhiemNvd> types = new();
+    private ReminderTypeKhiemNvd newType = new();
+    private ReminderTypeKhiemNvd? editModel;
+    private bool showInactive;
+    private string? statusMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTypes();
+    }
+
+    private async Task LoadTypes()
+    {
+        types = await GraphQL.GetReminderTypes(showInactive);
+        StateHasChanged();
+    }
+
+    private async Task CreateType()
+    {
+        statusMessage = "Creating type...";
+        var created = await GraphQL.CreateReminderType(newType);
+        if (created.HasValue && created.Value > 0)
+        {
+            newType = new ReminderTypeKhiemNvd();
+            await LoadTypes();
+            statusMessage = "Type created.";
+        }
+        else
+        {
+            statusMessage = GraphQL.LastErrorMessage ?? "Failed to create type.";
+        }
+    }
+
+    private void Edit(ReminderTypeKhiemNvd type)
+    {
+        editModel = new ReminderTypeKhiemNvd
+        {
+            ReminderTypeKhiemNvdid = type.ReminderTypeKhiemNvdid,
+            TypeName = type.TypeName,
+            Description = type.Description,
+            IsRecurring = type.IsRecurring,
+            IntervalDays = type.IntervalDays,
+            IntervalKm = type.IntervalKm,
+            IsPaymentRelated = type.IsPaymentRelated,
+            IsActive = type.IsActive
+        };
+    }
+
+    private async Task UpdateType()
+    {
+        if (editModel == null)
+        {
+            return;
+        }
+
+        statusMessage = "Updating...";
+        var updated = await GraphQL.UpdateReminderType(editModel);
+        if (updated.HasValue && updated.Value > 0)
+        {
+            editModel = null;
+            await LoadTypes();
+            statusMessage = "Type updated.";
+        }
+        else
+        {
+            statusMessage = GraphQL.LastErrorMessage ?? "Failed to update type.";
+        }
+    }
+
+    private async Task ToggleStatus(ReminderTypeKhiemNvd type)
+    {
+        if (!type.ReminderTypeKhiemNvdid.HasValue)
+        {
+            return;
+        }
+
+        await GraphQL.UpdateReminderTypeStatus(type.ReminderTypeKhiemNvdid.Value, !type.IsActive);
+        await LoadTypes();
+    }
+
+    private async Task OnIncludeInactiveChanged()
+    {
+        await LoadTypes();
+    }
+
+    private void GoBackToReminders() => Navigation.NavigateTo("/Reminders");
+}
