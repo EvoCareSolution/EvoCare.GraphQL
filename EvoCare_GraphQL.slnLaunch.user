@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "EvoCare.GraphQL",
+    "Projects": [
+      {
+        "Path": "EVOpsPro.GraphQLWebAPI.KhiemNVD\\EVOpsPro.GraphQLWebAPI.KhiemNVD.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "EVOpsPro.BlazorWebApp.KhiemNVD\\EVOpsPro.BlazorWebApp.KhiemNVD.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
