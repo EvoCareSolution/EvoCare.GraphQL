@@ -9,6 +9,12 @@ Xây dựng một hệ thống quản lý bảo dưỡng toàn diện cho các t
 
 ---
 
+![Trang chủ](docs/screenshot/Home.png)
+![Chi tiết nhắc nhở](docs/screenshot/Detail.png)
+![Cập nhật nhắc nhở](docs/screenshot/Update.png)
+![Xóa nhắc nhở](docs/screenshot/Delete.png)
+
+---
 ## 👥 Đối Tượng Người Dùng
 
 - 👤 **Khách hàng (Customer)**
